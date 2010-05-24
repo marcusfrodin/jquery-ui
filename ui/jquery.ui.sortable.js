@@ -21,6 +21,7 @@ $.widget("ui.sortable", $.ui.mouse, {
 		axis: false,
 		connectWith: false,
 		containment: false,
+		containmentElasticity: false,
 		cursor: 'auto',
 		cursorAt: false,
 		dropOnEmpty: true,
@@ -183,10 +184,14 @@ $.widget("ui.sortable", $.ui.mouse, {
 
 		//Create the placeholder
 		this._createPlaceholder();
+		
+		// Clear and reset previous elasticity settings
+		this._setElasticity();
 
 		//Set a containment if given in the options
-		if(o.containment)
+		if(o.containment) {
 			this._setContainment();
+		}
 
 		if(o.cursor) { // cursor option
 			if ($('body').css("cursor")) this._storedCursor = $('body').css("cursor");
@@ -333,6 +338,8 @@ $.widget("ui.sortable", $.ui.mouse, {
 		//If we are using droppables, inform the manager about the drop
 		if ($.ui.ddmanager && !this.options.dropBehaviour)
 			$.ui.ddmanager.drop(this, event);
+			
+		this._clearElasticity();
 
 		if(this.options.revert) {
 			var self = this;
@@ -839,6 +846,20 @@ $.widget("ui.sortable", $.ui.mouse, {
 			height: this.helper.outerHeight()
 		};
 	},
+	
+	_setElasticity: function() {
+		this._clearElasticity();
+		var o = this.options;
+		if (o.containment != 'document' && o.containment != 'window' && o.containmentElasticity) {
+			var ABSOLUTE_FUDGE = 10;
+			this._elasticity.x = this.currentItem.width() + ABSOLUTE_FUDGE;
+			this._elasticity.y = this.currentItem.height() + ABSOLUTE_FUDGE;
+		}
+	},
+	
+	_clearElasticity: function() {
+		this._elasticity = { x: 0, y: 0 };
+	},
 
 	_setContainment: function() {
 
@@ -912,10 +933,11 @@ $.widget("ui.sortable", $.ui.mouse, {
 		if(this.originalPosition) { //If we are not dragging yet, we won't check for options
 
 			if(this.containment) {
-				if(event.pageX - this.offset.click.left < this.containment[0]) pageX = this.containment[0] + this.offset.click.left;
-				if(event.pageY - this.offset.click.top < this.containment[1]) pageY = this.containment[1] + this.offset.click.top;
-				if(event.pageX - this.offset.click.left > this.containment[2]) pageX = this.containment[2] + this.offset.click.left;
-				if(event.pageY - this.offset.click.top > this.containment[3]) pageY = this.containment[3] + this.offset.click.top;
+								
+				if(event.pageX - this.offset.click.left < this.containment[0] - this._elasticity.x) pageX = this.containment[0] + this.offset.click.left + this._elasticity.x;
+				if(event.pageY - this.offset.click.top < (this.containment[1] - this._elasticity.y)) pageY = this.containment[1] + this.offset.click.top - this._elasticity.y;
+				if(event.pageX - this.offset.click.left > this.containment[2] + this._elasticity.x) pageX = this.containment[2] + this.offset.click.left - this._elasticity.x;
+				if(event.pageY - this.offset.click.top > (this.containment[3] + this._elasticity.y)) pageY = this.containment[3] + this.offset.click.top + this._elasticity.y;
 			}
 
 			if(o.grid) {
